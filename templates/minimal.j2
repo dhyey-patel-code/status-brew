@@ -1,0 +1,10 @@
+{{ subject }}
+{% if pto_dates_str %}PTO: {{ pto_dates_str }}
+{% endif %}
+{% for section in sections %}{% if section.items %}{{ section.canonical_name }}
+{% for item in section.items %}• {{ item.text }}
+{% endfor %}
+{% endif %}{% endfor %}
+{% if blockers %}Blockers: {% for b in blockers %}{{ b }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{% endif %}Thanks, Dhyey Patel

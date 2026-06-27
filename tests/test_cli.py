@@ -193,3 +193,57 @@ def test_no_parseable_sections_warns(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(sys, "argv", ["status-brew", "--file", str(f), "--dry-run"])
     main()
     assert "No work entries found" in capsys.readouterr().err
+
+
+# --- --template flag ---
+
+def test_template_flag_dry_run(monkeypatch, tmp_path, capsys):
+    tmpl = tmp_path / "custom.j2"
+    tmpl.write_text("HELLO: {{ subject }}")
+    monkeypatch.setattr(
+        sys, "argv",
+        ["status-brew", "--file", fixture("basic_worklog.md"), "--template", str(tmpl), "--dry-run"]
+    )
+    main()
+    captured = capsys.readouterr()
+    assert "HELLO:" in captured.out
+    assert "Status Update:" in captured.out
+
+
+def test_template_flag_overrides_format_rendering(monkeypatch, tmp_path, capsys):
+    tmpl = tmp_path / "custom.j2"
+    tmpl.write_text("CUSTOM_OUTPUT")
+    monkeypatch.setattr(
+        sys, "argv",
+        ["status-brew", "--file", fixture("basic_worklog.md"),
+         "--template", str(tmpl), "--format", "html", "--dry-run"]
+    )
+    main()
+    out = capsys.readouterr().out
+    assert "CUSTOM_OUTPUT" in out
+    assert "<!DOCTYPE html>" not in out
+
+
+def test_template_flag_missing_template_exits(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys, "argv",
+        ["status-brew", "--file", fixture("basic_worklog.md"),
+         "--template", "/no/such/template.j2", "--dry-run"]
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 1
+    assert "not found" in capsys.readouterr().err
+
+
+def test_template_flag_saves_file(monkeypatch, tmp_path):
+    tmpl = tmp_path / "custom.j2"
+    tmpl.write_text("{{ subject }}")
+    monkeypatch.setattr(
+        sys, "argv",
+        ["status-brew", "--file", fixture("basic_worklog.md"), "--template", str(tmpl)]
+    )
+    monkeypatch.chdir(tmp_path)
+    main()
+    files = [f for f in tmp_path.iterdir() if f.name != "custom.j2"]
+    assert len(files) == 1

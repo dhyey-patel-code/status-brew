@@ -142,6 +142,33 @@ def format_html(worklog: WorkLog) -> str:
     return "\n".join(parts)
 
 
+def _build_template_context(worklog: WorkLog) -> dict:
+    return {
+        "subject": _build_subject(worklog.date_range),
+        "date_range": worklog.date_range,
+        "date_range_str": _format_date_range_human(worklog.date_range),
+        "sections": worklog.sections,
+        "pto_entries": worklog.pto_entries,
+        "pto_dates_str": _format_pto_text(worklog.pto_entries),
+        "blockers": _collect_all_blockers(worklog),
+        "worklog": worklog,
+    }
+
+
+def format_template(worklog: WorkLog, template_path: str) -> str:
+    import os
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+    path = os.path.abspath(template_path)
+    env = Environment(
+        loader=FileSystemLoader(os.path.dirname(path)),
+        undefined=StrictUndefined,
+        keep_trailing_newline=True,
+    )
+    tmpl = env.get_template(os.path.basename(path))
+    return tmpl.render(_build_template_context(worklog))
+
+
 def format_output(worklog: WorkLog, fmt: str) -> str:
     if fmt == "text":
         return format_text(worklog)

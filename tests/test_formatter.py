@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import pytest
 from status_brew.formatter import (
     _build_subject,
@@ -7,6 +8,7 @@ from status_brew.formatter import (
     format_html,
     format_markdown,
     format_output,
+    format_template,
     format_text,
 )
 from status_brew.models import DateRange, PtoEntry, WorkItem, WorkLog, WorkSection
@@ -206,3 +208,59 @@ def test_format_output_invalid_raises():
     wl = _make_worklog()
     with pytest.raises(ValueError, match="Unsupported format"):
         format_output(wl, "pdf")
+
+
+# --- format_template ---
+
+def test_format_template_renders_subject(tmp_path):
+    tmpl = tmp_path / "t.j2"
+    tmpl.write_text("{{ subject }}")
+    wl = _make_worklog(dr=_make_date_range())
+    out = format_template(wl, str(tmpl))
+    assert "Status Update:" in out
+
+
+def test_format_template_renders_sections(tmp_path):
+    tmpl = tmp_path / "t.j2"
+    tmpl.write_text(
+        "{% for section in sections %}{{ section.canonical_name }}: "
+        "{% for item in section.items %}{{ item.text }}{% endfor %}{% endfor %}"
+    )
+    s = _section("GDD", ["review contract"])
+    wl = _make_worklog(sections=[s])
+    out = format_template(wl, str(tmpl))
+    assert "GDD" in out
+    assert "review contract" in out
+
+
+def test_format_template_renders_pto(tmp_path):
+    tmpl = tmp_path / "t.j2"
+    tmpl.write_text("{{ pto_dates_str }}")
+    pto = PtoEntry(dates=["22/6", "23/6"])
+    wl = _make_worklog(pto_entries=[pto])
+    out = format_template(wl, str(tmpl))
+    assert "22/6" in out
+    assert "23/6" in out
+
+
+def test_format_template_renders_blockers(tmp_path):
+    tmpl = tmp_path / "t.j2"
+    tmpl.write_text("{% for b in blockers %}{{ b }}|{% endfor %}")
+    s = _section("GDD", ["waiting on approval"], blocker_flags=[True])
+    wl = _make_worklog(sections=[s], explicit_blockers=["portal down"])
+    out = format_template(wl, str(tmpl))
+    assert "waiting on approval" in out
+    assert "portal down" in out
+
+
+def test_format_template_missing_file_raises(tmp_path):
+    with pytest.raises(Exception):
+        format_template(_make_worklog(), str(tmp_path / "nonexistent.j2"))
+
+
+def test_format_template_undefined_var_raises(tmp_path):
+    from jinja2 import UndefinedError
+    tmpl = tmp_path / "t.j2"
+    tmpl.write_text("{{ nonexistent_variable }}")
+    with pytest.raises(UndefinedError):
+        format_template(_make_worklog(), str(tmpl))

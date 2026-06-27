@@ -1,0 +1,19 @@
+Subject: {{ subject }}
+
+Hi team,
+
+Here's a quick update on my work for the week.
+{% if pto_dates_str %}
+PTO: {{ pto_dates_str }}
+{% endif %}
+{% for section in sections %}{% if section.items %}
+--- {{ section.canonical_name }} ---
+{% for item in section.items %}  - {{ item.text }}
+{% endfor %}
+{% endif %}{% endfor %}
+{% if blockers %}--- Blockers / Risks ---
+{% for b in blockers %}  - {{ b }}
+{% endfor %}
+{% endif %}
+Thanks,
+Dhyey Patel
