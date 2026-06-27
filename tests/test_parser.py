@@ -135,3 +135,15 @@ def test_parse_tab_indented_items():
     wl = parse_worklog(text)
     assert len(wl.sections[0].items) == 1
     assert wl.sections[0].items[0].text == "Tab indented item"
+
+
+# --- Empty / whitespace input ---
+
+def test_parse_worklog_empty_string_raises():
+    with pytest.raises(ValueError, match="empty"):
+        parse_worklog("")
+
+
+def test_parse_worklog_whitespace_only_raises():
+    with pytest.raises(ValueError, match="empty"):
+        parse_worklog("   \n\n\t\n")

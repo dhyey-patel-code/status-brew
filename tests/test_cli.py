@@ -117,3 +117,79 @@ def test_dry_run_with_pto_multi(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "22/6" in captured.out
     assert "23/6" in captured.out
+
+
+# --- Empty / invalid file edge cases ---
+
+def test_empty_file_exits(monkeypatch, tmp_path):
+    f = tmp_path / "empty.md"
+    f.write_text("")
+    monkeypatch.setattr(sys, "argv", ["status-brew", "--file", str(f), "--dry-run"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 1
+
+
+def test_empty_file_error_on_stderr(monkeypatch, tmp_path, capsys):
+    f = tmp_path / "empty.md"
+    f.write_text("")
+    monkeypatch.setattr(sys, "argv", ["status-brew", "--file", str(f), "--dry-run"])
+    with pytest.raises(SystemExit):
+        main()
+    assert "Error:" in capsys.readouterr().err
+
+
+def test_whitespace_only_file_exits(monkeypatch, tmp_path):
+    f = tmp_path / "whitespace.md"
+    f.write_text("   \n\n\t\n")
+    monkeypatch.setattr(sys, "argv", ["status-brew", "--file", str(f), "--dry-run"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 1
+
+
+def test_missing_file_error_message(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["status-brew", "--file", "/no/such/file.md", "--dry-run"])
+    with pytest.raises(SystemExit):
+        main()
+    captured = capsys.readouterr()
+    assert "Error:" in captured.err
+    assert "not found" in captured.err
+
+
+# --- Verbose flag ---
+
+def test_verbose_emits_debug_to_stderr(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys, "argv",
+        ["status-brew", "--file", fixture("basic_worklog.md"), "--dry-run", "--verbose"]
+    )
+    main()
+    assert "DEBUG" in capsys.readouterr().err
+
+
+def test_no_verbose_no_debug_output(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys, "argv",
+        ["status-brew", "--file", fixture("basic_worklog.md"), "--dry-run"]
+    )
+    main()
+    assert "DEBUG" not in capsys.readouterr().err
+
+
+# --- Empty-section and no-sections warnings ---
+
+def test_empty_section_warns_on_stderr(monkeypatch, tmp_path, capsys):
+    f = tmp_path / "no_items.md"
+    f.write_text("- GDD\n")
+    monkeypatch.setattr(sys, "argv", ["status-brew", "--file", str(f), "--dry-run"])
+    main()
+    assert "No entries found for workstream" in capsys.readouterr().err
+
+
+def test_no_parseable_sections_warns(monkeypatch, tmp_path, capsys):
+    f = tmp_path / "prose.md"
+    f.write_text("Dates: 22/6-26/6\nThis is prose with no bullet points.\n")
+    monkeypatch.setattr(sys, "argv", ["status-brew", "--file", str(f), "--dry-run"])
+    main()
+    assert "No work entries found" in capsys.readouterr().err

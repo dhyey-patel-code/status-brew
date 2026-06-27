@@ -22,6 +22,8 @@ def parse_file(filepath: str) -> str:
 
 
 def parse_worklog(text: str) -> WorkLog:
+    if not text.strip():
+        raise ValueError("Input file is empty or contains no readable content")
     lines = text.splitlines()
     date_range = _parse_date_range(lines)
     blocks = _split_into_blocks(lines)
