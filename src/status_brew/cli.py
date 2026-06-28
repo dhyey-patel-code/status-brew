@@ -3,7 +3,7 @@ import argparse
 import logging
 import sys
 from .classifier import classify_worklog
-from .formatter import format_output
+from .formatter import format_output, format_template
 from .parser import parse_file, parse_worklog
 from .writer import generate_filename, write_output
 
@@ -30,6 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Print output to stdout instead of saving to a file",
+    )
+    p.add_argument(
+        "--template", "-t",
+        metavar="FILE",
+        help="Jinja2 template file (.j2) for custom output format",
     )
     p.add_argument(
         "--verbose", "-v",
@@ -72,8 +77,16 @@ def main() -> None:
         if not worklog.sections and not worklog.explicit_blockers and not worklog.pto_entries:
             logger.warning("No work entries found in the input file")
 
-        logger.debug("Formatting output as %s", args.format)
-        output = format_output(worklog, args.format)
+        if args.template:
+            import os
+            if not os.path.isfile(args.template):
+                print(f"Error: Template file not found: {args.template}", file=sys.stderr)
+                sys.exit(1)
+            logger.debug("Rendering with template: %s", args.template)
+            output = format_template(worklog, args.template)
+        else:
+            logger.debug("Formatting output as %s", args.format)
+            output = format_output(worklog, args.format)
         if args.dry_run:
             print(output)
         else:
